@@ -2,39 +2,42 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace LeitorGenoma
 {
     class Program
     {
-        private const string caminho = "C:/Users/PICHAU/Documents/UCS/FundamentosSO/LeitorGenoma/LeitorGenoma/intergenidb.csv";
+        private const string caminhoLeitura = "C:/Users/PICHAU/Documents/UCS/FundamentosSO/intergenidb.csv";
+        private const string caminhoEscrita = "C:/Users/PICHAU/Documents/UCS/FundamentosSO/intergenidb-ordenado.csv";
+
         static void Main(string[] args)
         {
 
-            Task task0 = Task.Factory.StartNew(() => doStuff(0, 10000));
-            Task task1 = Task.Factory.StartNew(() => doStuff(1, 10000));
-            Task task2 = Task.Factory.StartNew(() => doStuff(2, 10000));
-            Task task3 = Task.Factory.StartNew(() => doStuff(3, 10000));
-            Task task4 = Task.Factory.StartNew(() => doStuff(4, 10000));
-            Task task5 = Task.Factory.StartNew(() => doStuff(5, 10000));
-            Task task6 = Task.Factory.StartNew(() => doStuff(6, 10000));
+            Task<ICollection<Genoma>> task0 = Task<ICollection<Genoma>>.Factory.StartNew(() => ExecutarAcaoThread(0));
+            Task<ICollection<Genoma>> task1 = Task<ICollection<Genoma>>.Factory.StartNew(() => ExecutarAcaoThread(1));
+            Task<ICollection<Genoma>> task2 = Task<ICollection<Genoma>>.Factory.StartNew(() => ExecutarAcaoThread(2));
+            Task<ICollection<Genoma>> task3 = Task<ICollection<Genoma>>.Factory.StartNew(() => ExecutarAcaoThread(3));
+            Task<ICollection<Genoma>> task4 = Task<ICollection<Genoma>>.Factory.StartNew(() => ExecutarAcaoThread(4));
+            Task<ICollection<Genoma>> task5 = Task<ICollection<Genoma>>.Factory.StartNew(() => ExecutarAcaoThread(5));
+            Task<ICollection<Genoma>> task6 = Task<ICollection<Genoma>>.Factory.StartNew(() => ExecutarAcaoThread(6));
+            Task<ICollection<Genoma>> task7 = Task<ICollection<Genoma>>.Factory.StartNew(() => ExecutarAcaoThread(7));
 
-            Task.WaitAll(task0, task1, task2, task3, task4, task5, task6);
-            Console.WriteLine("All threads complete");
+            var mainTask = Task.WhenAll(task0, task1, task2, task3, task4, task5, task6, task7);
 
-            //Parallel.ForEach(File.ReadLines(caminho).Take(10), (line, _, lineNumber) =>
-            //{
-            //    Console.WriteLine(_);
-            //    Console.WriteLine(line);
-            //});
+            ExecutarAcaoMainThread(mainTask);
         }
 
-        static void doStuff(int taskNumber, int lineLimit)
+        static ICollection<Genoma> ExecutarAcaoThread(int taskNumber)
         {
-            var lines = File.ReadLines(caminho).Skip(taskNumber * lineLimit).Take(lineLimit);
+            //Leitura dados
+            var lineLimit = 10000;
+            var lines = File.ReadLines(caminhoLeitura).Skip(taskNumber * lineLimit).Take(lineLimit);
+            
+            //Criação e Ordenação dos dados
             var genomas = CriarGenomas(lines);
-            Console.WriteLine(taskNumber);
+            return genomas.OrderBy(x => x.Gene).ThenBy(y => y.Organismo).ToList();
         }
 
         private static ICollection<Genoma> CriarGenomas(IEnumerable<string> lines)
@@ -46,6 +49,23 @@ namespace LeitorGenoma
                 retorno.Add(Genoma.Criar(dados[0], dados[1], dados[2], dados[3], dados[4], Convert.ToInt64(dados[5]), Convert.ToInt64(dados[6]), dados[7]));
             }
             return retorno;
+        }
+
+        private static void ExecutarAcaoMainThread(Task<ICollection<Genoma>[]> mainTask)
+        {
+            while (!mainTask.IsCompleted) { }
+
+            var GenomasEscrita = mainTask.Result.SelectMany(result => result).OrderBy(x => x.Gene).ThenBy(y => y.Organismo).ToList();
+            var escrita = new StringBuilder();
+            foreach (var Genoma in GenomasEscrita)
+                escrita.AppendLine(ObterFormatoLinha(Genoma));
+
+            File.WriteAllText(caminhoEscrita, escrita.ToString());
+        }
+
+        private static string ObterFormatoLinha(Genoma genoma)
+        {
+            return $@"{genoma.Gene};{genoma.Organismo};{genoma.TipoOrganismo};{genoma.FamiliaOrganismo};{genoma.PapelBiologico};{genoma.PosicaoInicialGenoma};{genoma.PosicaoFinalGenoma};{genoma.SequenciaDNA}";
         }
     }
 }
